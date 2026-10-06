@@ -1,0 +1,34 @@
+feature,area,priority,original,clone,notes
+Pick a course on first launch,onboarding,must,yes,yes,
+Pick a daily XP goal,onboarding,should,yes,yes,
+Path of units with lesson nodes,learn path,must,yes,yes,
+Locked / current / completed lesson states,learn path,must,yes,yes,
+Multiple-choice translation exercise,lesson,must,yes,yes,
+Build the sentence from a word bank,lesson,must,yes,yes,
+Type the translation,lesson,must,yes,yes,
+Match the pairs,lesson,must,yes,yes,
+Listen and build what you hear,lesson,should,yes,yes,browser speech synthesis; text fallback when no voice
+Check / feedback / continue cycle,lesson,must,yes,yes,
+Forgive case / punctuation / accents / small typos,lesson,must,yes,yes,
+Wrong answers come back later in the lesson,lesson,must,yes,yes,
+Lesson progress bar,lesson,must,yes,yes,
+Quit lesson with confirmation,lesson,should,yes,yes,
+Hearts lost on mistakes,hearts,must,yes,yes,
+Out of hearts screen with refill timer,hearts,must,yes,yes,
+Earn XP per lesson,progress,must,yes,yes,
+Daily streak,progress,must,yes,yes,
+Lesson complete screen with XP accuracy and time,progress,must,yes,yes,
+Practice mistakes to earn a heart back,practice,should,yes,yes,
+Profile with stats,profile,should,yes,yes,
+XP chart for the last 7 days,profile,could,yes,yes,
+Achievements,profile,could,yes,yes,
+Daily goal progress on the path,progress,should,yes,yes,
+Sound effects on correct and wrong,lesson,could,yes,yes,
+Second course,courses,should,yes,yes,English and Spanish for Italian speakers
+Settings (goal sound reset),settings,should,yes,yes,
+Progress saved between visits,progress,must,yes,yes,per device (localStorage); no account sync yet
+Leaderboards / leagues,social,could,yes,skip,needs a network of real users and a server
+Friends and following,social,could,yes,skip,needs a network of real users and a server
+Gems shop and ads,monetisation,could,yes,skip,business model not part of learning
+AI video call,premium,should,yes,skip,licensed models and their own prompts
+Their course content and audio,content,must,yes,skip,owned content; all sentences written fresh
