@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { BuildExercise, Course, Exercise, MatchExercise, SelectExercise, TypeExercise } from '../types'
-import { checkAnswer } from '../lib/answers'
+import { checkAnswer, compactText } from '../lib/answers'
 import type { Verdict } from '../lib/answers'
 import { answerRun, nextRun, runDone, runProgress, shuffle, startRun } from '../lib/lesson'
 import type { Run } from '../lib/lesson'
@@ -36,7 +36,7 @@ export function Lesson(props: Props) {
     let v: Verdict
     if (ex.type === 'select') v = value === ex.answer ? { correct: true, note: null, expected: ex.answer } : { correct: false, note: null, expected: ex.answer }
     else if (ex.type === 'match') v = { correct: true, note: null, expected: '' }
-    else v = checkAnswer(value, ex.answers, { typos: ex.type === 'type' })
+    else v = checkAnswer(value, ex.answers, { typos: ex.type === 'type', compact: ex.compact })
     setVerdict(v)
     setRun((r) => answerRun(r, v.correct))
     if (v.correct) {
@@ -187,7 +187,10 @@ function Select({ ex, course, sound, value, locked, verdict, onChange }: {
             >
               <span className="key" aria-hidden="true">{i + 1}</span>
               <span className="emoji" aria-hidden="true">{o.emoji}</span>
-              {o.text}
+              <span>
+                <span>{o.text}</span>
+                {o.roman && <small className="roman">{o.roman}</small>}
+              </span>
             </button>
           )
         })}
@@ -203,7 +206,8 @@ function Build({ ex, course, sound, locked, onChange }: {
   const [reveal, setReveal] = useState(ex.type === 'listen' && !canSpeak())
   const lang = ex.lang === 'target' ? course.targetLang : course.nativeLang
   const listen = ex.type === 'listen'
-  const play = useCallback((slow = false) => { if (ex.audio) speak(ex.audio, course.targetLang, slow) }, [ex.audio, course.targetLang])
+  const shown = (t: string) => (course.compact ? compactText(t) : t)
+  const play = useCallback((slow = false) => { if (ex.audio) speak(compactOr(ex.audio, course.compact), course.targetLang, slow) }, [ex.audio, course.targetLang, course.compact])
 
   useEffect(() => {
     if (listen && sound) play()
@@ -223,7 +227,7 @@ function Build({ ex, course, sound, locked, onChange }: {
             <button className="speaker slow" aria-label="Ascolta lentamente" onClick={() => play(true)}>🐢</button>
           </div>
           {reveal
-            ? <p className="bubble" lang={course.targetLang} data-testid="listen-text">{ex.audio}</p>
+            ? <p className="bubble" lang={course.targetLang}><span data-testid="listen-text">{shown(ex.audio ?? '')}</span>{ex.roman && <small className="roman">{ex.roman}</small>}</p>
             : <button className="link-btn" onClick={() => setReveal(true)}>Non posso ascoltare ora</button>}
         </>
       ) : (
@@ -231,9 +235,12 @@ function Build({ ex, course, sound, locked, onChange }: {
           <div className="avatar" aria-hidden="true">🧑‍🏫</div>
           <p className="bubble" lang={ex.lang === 'target' ? course.nativeLang : course.targetLang}>
             {ex.lang === 'native' && sound && (
-              <button className="icon-btn" style={{ fontSize: 20, padding: 2 }} aria-label="Ascolta la frase" onClick={() => speak(ex.prompt, course.targetLang)}>🔊</button>
+              <button className="icon-btn" style={{ fontSize: 20, padding: 2 }} aria-label="Ascolta la frase" onClick={() => speak(shown(ex.prompt), course.targetLang)}>🔊</button>
             )}
-            <span data-testid="prompt">{ex.prompt}</span>
+            <span>
+              <span data-testid="prompt">{ex.lang === 'native' ? shown(ex.prompt) : ex.prompt}</span>
+              {ex.roman && <small className="roman">{ex.roman}</small>}
+            </span>
           </p>
         </div>
       )}
@@ -343,11 +350,18 @@ function Match({ ex, course, sound, onDone }: { ex: MatchExercise; course: Cours
         <div className="col" role="group" aria-label={course.title} lang={course.targetLang}>
           {right.map((i) => (
             <button key={i} className={`choice${cls('r', i)}`} disabled={matched.includes(i)} aria-pressed={sel?.side === 'r' && sel.i === i} onClick={() => choose('r', i)}>
-              {ex.pairs[i].target}
+              <span>
+                <span>{ex.pairs[i].target}</span>
+                {ex.pairs[i].roman && <small className="roman">{ex.pairs[i].roman}</small>}
+              </span>
             </button>
           ))}
         </div>
       </div>
     </>
   )
+}
+
+function compactOr(text: string, compact?: boolean): string {
+  return compact ? compactText(text) : text
 }

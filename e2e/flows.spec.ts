@@ -1,11 +1,18 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { allLessons, english } from '../src/data/courses'
+import { chinese, polish } from '../src/data/languages'
+import type { Course } from '../src/types'
 
 // A solver that answers like a learner who knows the course, using only what is on screen.
-const words = allLessons(english).flatMap((l) => l.words)
-const sentences = allLessons(english).flatMap((l) => l.sentences)
-const tiles = (s: string) => s.replace(/[.,!?¡¿;:"]/g, ' ').split(/\s+/).filter(Boolean).map((t, i) => (i === 0 && t !== 'I' ? t.toLowerCase() : t))
+let course: Course = english
+const words = () => allLessons(course).flatMap((l) => l.words)
+const sentences = () => allLessons(course).flatMap((l) => l.sentences)
+const squash = (t: string) => t.replace(/\s+/g, '')
+const tiles = (s: string, locale: string) =>
+  s.replace(/[.,!?¡¿;:"。，、！？]/g, ' ').split(/\s+/).filter(Boolean).map((t, i) => (i === 0 && t !== 'I' ? t.toLocaleLowerCase(locale) : t))
+
+test.beforeEach(() => { course = english })
 
 test.beforeEach(async ({ page }) => {
   const errors: string[] = []
@@ -28,8 +35,8 @@ async function onboard(page: Page, course = 'Inglese') {
   await page.getByRole('button', { name: 'Inizia a imparare' }).click()
 }
 
-async function clickTiles(page: Page, answer: string) {
-  for (const t of tiles(answer)) {
+async function clickTiles(page: Page, answer: string, locale: string) {
+  for (const t of tiles(answer, locale)) {
     await page.getByTestId('bank').getByRole('button', { name: t, exact: true }).first().click()
   }
 }
@@ -41,36 +48,38 @@ async function answer(page: Page, wrong = false): Promise<boolean> {
 
   if (title.startsWith('Quale di questi')) {
     const native = title.match(/«(.+)»/)![1]
-    const target = words.find((w) => w.native === native)!.target
+    const target = words().find((w) => w.native === native)!.target
     const options = page.locator('.choice')
-    if (wrong) await options.filter({ hasNotText: target }).first().click()
-    else await options.filter({ hasText: target }).first().click()
+    const right = page.getByText(target, { exact: true })
+    if (wrong) await options.filter({ hasNot: right }).first().click()
+    else await options.filter({ has: right }).first().click()
   } else if (title === 'Abbina le coppie') {
     const left = page.getByRole('group', { name: 'Italiano' }).getByRole('button')
     const n = await left.count()
     for (let i = 0; i < n; i++) {
       const b = left.nth(i)
       const native = (await b.textContent())!.trim()
-      const target = words.find((w) => w.native === native)!.target
+      const target = words().find((w) => w.native === native)!.target
       await b.click()
-      await page.getByRole('group', { name: 'Inglese' }).getByRole('button', { name: target, exact: true }).click()
+      await page.getByRole('group', { name: course.title }).getByRole('button').filter({ has: page.getByText(target, { exact: true }) }).click()
     }
     await expect(page.getByRole('button', { name: 'Continua' })).toBeVisible()
     return true
   } else if (title === 'Scrivi ciò che senti') {
     await page.getByRole('button', { name: 'Non posso ascoltare ora' }).click().catch(() => {})
     const text = (await page.getByTestId('listen-text').textContent())!.trim()
+    const heard = sentences().find((x) => squash(x.target) === squash(text))!.target
     if (wrong) await page.getByTestId('bank').getByRole('button').first().click()
-    else await clickTiles(page, text)
+    else await clickTiles(page, heard, course.targetLang)
   } else if (title === 'Traduci questa frase') {
     const prompt = (await page.getByTestId('prompt').textContent())!.trim()
-    const toTarget = sentences.find((s) => s.native === prompt)
-    const sentence = toTarget ? toTarget.target : sentences.find((s) => s.target === prompt)!.native
+    const toTarget = sentences().find((x) => x.native === prompt)
+    const sentence = toTarget ? toTarget.target : sentences().find((x) => squash(x.target) === squash(prompt))!.native
     if (wrong) await page.getByTestId('bank').getByRole('button').last().click()
-    else await clickTiles(page, sentence)
+    else await clickTiles(page, sentence, toTarget ? course.targetLang : course.nativeLang)
   } else if (title.startsWith('Scrivi in')) {
     const prompt = (await page.getByTestId('prompt').textContent())!.trim()
-    const s = sentences.find((x) => x.native === prompt)!
+    const s = sentences().find((x) => x.native === prompt)!
     await page.getByLabel('La tua traduzione').fill(wrong ? 'banana' : s.target.toLowerCase().replace(/[.!?]/g, ''))
   }
   await page.getByRole('button', { name: 'Verifica' }).click()
@@ -203,3 +212,15 @@ test('typed answers forgive case and punctuation', async ({ page }) => {
   await page.keyboard.press('Enter')
   await expect(page.getByRole('heading', { name: /Ottimo|Perfetto|Esatto|Bravissimo|Ben fatto/ })).toBeVisible()
 })
+
+for (const c of [polish, chinese]) {
+  test(`a full first lesson in ${c.title}`, async ({ page }) => {
+    course = c
+    await onboard(page, c.title)
+    await page.getByRole('button', { name: 'Saluti, da fare' }).click()
+    await finishLesson(page)
+    await expect(page.getByRole('heading', { name: 'Lezione perfetta!' })).toBeVisible()
+    await page.getByRole('button', { name: 'Continua' }).click()
+    await expect(page.getByRole('button', { name: 'Persone, da fare' })).toBeEnabled()
+  })
+}

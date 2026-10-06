@@ -14,3 +14,5 @@ Works at 16px (favicon.svg). Still to do: 1024px app icon, 1200×630 social imag
 **Voice:** warm (not childish), direct (not bossy), encouraging (not pushy). All strings written fresh in Italian.
 
 **Sweep:** `python3 sweep.py . --config replica/brand.json` → clean.
+
+Note: the character name "Bea" was dropped from the sweep list: it is an everyday Romanian verb ("bea" = drinks) in the course content, not a reference to the original.

@@ -24,7 +24,8 @@ XP chart for the last 7 days,profile,could,yes,yes,
 Achievements,profile,could,yes,yes,
 Daily goal progress on the path,progress,should,yes,yes,
 Sound effects on correct and wrong,lesson,could,yes,yes,
-Second course,courses,should,yes,yes,English and Spanish for Italian speakers
+Many courses,courses,should,yes,yes,15 courses for Italian speakers; 13 share one 6-lesson syllabus
+Non-Latin scripts with romanization,courses,should,yes,yes,zh ja ko ru el; compact tiles for zh ja
 Settings (goal sound reset),settings,should,yes,yes,
 Progress saved between visits,progress,must,yes,yes,per device (localStorage); no account sync yet
 Leaderboards / leagues,social,could,yes,skip,needs a network of real users and a server

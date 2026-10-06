@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { checkAnswer, normalize, toTiles } from './answers'
 import { answerRun, buildLesson, buildPractice, nextRun, runDone, seededRng, startRun } from './lesson'
 import * as store from './store'
-import { allLessons, courses, english, spanish } from '../data/courses'
+import { allLessons, courses, english } from '../data/courses'
 import type { LessonResult } from '../types'
 
 const at = (y: number, m: number, d: number, h = 10) => new Date(y, m - 1, d, h).getTime()
@@ -52,24 +52,54 @@ describe('course content', () => {
   }
 
   it('every built lesson can be answered with its own tiles', () => {
-    for (const course of [english, spanish]) {
+    for (const course of courses) {
       for (const lesson of allLessons(course)) {
         const exercises = buildLesson(course, lesson, seededRng(7))
         expect(exercises).toHaveLength(9)
         for (const ex of exercises) {
           if (ex.type === 'build' || ex.type === 'listen') {
-            const built = toTiles(ex.answers[0]).map((t, i) => (i === 0 && t !== 'I' ? t.toLowerCase() : t))
-            for (const t of built) expect(ex.tiles).toContain(t)
-            expect(checkAnswer(built.join(' '), ex.answers).correct).toBe(true)
+            const locale = ex.lang === 'target' ? course.targetLang : course.nativeLang
+            const built = toTiles(ex.answers[0]).map((t, i) => (i === 0 && t !== 'I' ? t.toLocaleLowerCase(locale) : t))
+            for (const t of built) expect(ex.tiles, `${course.id} ${ex.id}`).toContain(t)
+            expect(checkAnswer(built.join(' '), ex.answers, { compact: ex.compact }).correct, `${course.id} ${ex.id}`).toBe(true)
           }
           if (ex.type === 'select') {
             expect(ex.options.map((o) => o.text)).toContain(ex.answer)
             expect(new Set(ex.options.map((o) => o.text)).size).toBe(3)
           }
-          if (ex.type === 'type') expect(checkAnswer(ex.answers[0], ex.answers, { typos: true }).correct).toBe(true)
+          if (ex.type === 'type') {
+            expect(course.nonLatin).toBeFalsy()
+            expect(checkAnswer(ex.answers[0], ex.answers, { typos: true }).correct).toBe(true)
+          }
         }
       }
     }
+  })
+
+  it('has many courses, each with unique word answers and romanization where the script is not Latin', () => {
+    expect(courses.length).toBeGreaterThanOrEqual(15)
+    expect(new Set(courses.map((c) => c.id)).size).toBe(courses.length)
+    for (const course of courses) {
+      const words = allLessons(course).flatMap((l) => l.words)
+      expect(new Set(words.map((w) => w.target)).size, course.id).toBe(words.length)
+      if (course.nonLatin) for (const w of words) expect(w.roman, `${course.id} ${w.target}`).toBeTruthy()
+    }
+  })
+})
+
+describe('scripts and languages', () => {
+  it('Chinese and Japanese answers ignore the tile spaces', () => {
+    expect(checkAnswer('我吃苹果', ['我 吃 苹果 。'], { compact: true })).toMatchObject({ correct: true, expected: '我吃苹果。' })
+    expect(checkAnswer('私 は りんご を 食べます', ['私 は りんご を 食べます 。'], { compact: true }).correct).toBe(true)
+    expect(checkAnswer('我吃面包', ['我 吃 苹果 。'], { compact: true }).correct).toBe(false)
+  })
+  it('Polish, German and Turkish special letters count as accents', () => {
+    expect(checkAnswer('jablko jest czerwone', ['Jabłko jest czerwone.'])).toMatchObject({ correct: true, note: 'accent' })
+    expect(checkAnswer('das pferd ist gross', ['Das Pferd ist groß.'])).toMatchObject({ correct: true, note: 'accent' })
+    expect(checkAnswer('iyi geceler anne', ['İyi geceler, anne.'])).toMatchObject({ correct: true, note: null })
+  })
+  it('Romanian accepts both comma and cedilla letters', () => {
+    expect(checkAnswer('Mulţumesc, la revedere', ['Mulțumesc, la revedere.'])).toMatchObject({ correct: true, note: null })
   })
 })
 

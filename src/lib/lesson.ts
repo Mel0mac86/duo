@@ -28,28 +28,30 @@ function pick<T>(items: T[], n: number, rng: Rng): T[] {
   return shuffle(items, rng).slice(0, n)
 }
 
-function tileCase(word: string, index: number): string {
-  return index === 0 && word !== 'I' ? word.toLocaleLowerCase() : word
+function tileCase(word: string, index: number, locale: string): string {
+  return index === 0 && word !== 'I' ? word.toLocaleLowerCase(locale) : word
 }
 
-function sentenceTiles(sentence: string): string[] {
-  return toTiles(sentence).map(tileCase)
+function sentenceTiles(sentence: string, locale: string): string[] {
+  return toTiles(sentence).map((w, i) => tileCase(w, i, locale))
 }
 
-function distractors(pool: Sentence[], side: 'native' | 'target', avoid: string[], n: number, rng: Rng): string[] {
-  const taken = new Set(avoid.map((t) => t.toLocaleLowerCase()))
+function distractors(pool: Sentence[], side: 'native' | 'target', locale: string, avoid: string[], n: number, rng: Rng): string[] {
+  const taken = new Set(avoid.map((t) => t.toLocaleLowerCase(locale)))
   const words = new Set<string>()
-  for (const s of pool) for (const t of sentenceTiles(s[side])) if (!taken.has(t.toLocaleLowerCase())) words.add(t)
+  for (const s of pool) for (const t of sentenceTiles(s[side], locale)) if (!taken.has(t.toLocaleLowerCase(locale))) words.add(t)
   return pick([...words], n, rng)
 }
 
 function buildFrom(
-  lessonId: string, id: string, sentence: Sentence, into: 'native' | 'target',
+  course: Course, lessonId: string, id: string, sentence: Sentence, into: 'native' | 'target',
   pool: Sentence[], rng: Rng, listen = false,
 ): BuildExercise {
+  const locale = into === 'target' ? course.targetLang : course.nativeLang
   const answer = sentence[into]
   const alts = (into === 'target' ? sentence.targetAlts : sentence.nativeAlts) ?? []
-  const tiles = sentenceTiles(answer)
+  const tiles = sentenceTiles(answer, locale)
+  const showsTarget = listen || into === 'native'
   return {
     id,
     lessonId,
@@ -57,8 +59,10 @@ function buildFrom(
     prompt: listen ? '' : into === 'target' ? sentence.native : sentence.target,
     audio: listen ? sentence.target : undefined,
     lang: into,
-    tiles: shuffle([...tiles, ...distractors(pool, into, tiles, listen ? 2 : 3, rng)], rng),
+    tiles: shuffle([...tiles, ...distractors(pool, into, locale, tiles, listen ? 2 : 3, rng)], rng),
     answers: [answer, ...alts],
+    roman: showsTarget ? sentence.roman : undefined,
+    compact: course.compact && into === 'target' ? true : undefined,
   }
 }
 
@@ -83,7 +87,7 @@ export function buildLesson(course: Course, lesson: LessonDef, rng: Rng): Exerci
       lessonId: lesson.id,
       type: 'select' as const,
       prompt: word.native,
-      options: shuffle([word, ...wrong], rng).map((x) => ({ text: x.target, emoji: x.emoji })),
+      options: shuffle([word, ...wrong], rng).map((x) => ({ text: x.target, emoji: x.emoji, roman: x.roman })),
       answer: word.target,
     }
   })
@@ -92,7 +96,7 @@ export function buildLesson(course: Course, lesson: LessonDef, rng: Rng): Exerci
     id: id(3),
     lessonId: lesson.id,
     type: 'match',
-    pairs: lesson.words.map((x) => ({ native: x.native, target: x.target })),
+    pairs: lesson.words.map((x) => ({ native: x.native, target: x.target, roman: x.roman })),
   }
 
   const listenSentence = pick(lesson.sentences, 1, rng)[0]
@@ -100,13 +104,16 @@ export function buildLesson(course: Course, lesson: LessonDef, rng: Rng): Exerci
   return [
     selects[0],
     selects[1],
-    buildFrom(lesson.id, id(4), s0, 'target', others, rng),
+    buildFrom(course, lesson.id, id(4), s0, 'target', others, rng),
     match,
-    buildFrom(lesson.id, id(5), s1, 'native', others, rng),
+    buildFrom(course, lesson.id, id(5), s1, 'native', others, rng),
     selects[2],
-    buildFrom(lesson.id, id(6), s2, 'target', others, rng),
-    { id: id(7), lessonId: lesson.id, type: 'type', prompt: s3.native, lang: 'target', answers: [s3.target, ...(s3.targetAlts ?? [])] },
-    buildFrom(lesson.id, id(8), listenSentence, 'target', others, rng, true),
+    buildFrom(course, lesson.id, id(6), s2, 'target', others, rng),
+    // typing needs a keyboard for the script: non-Latin courses build the sentence instead
+    course.nonLatin
+      ? buildFrom(course, lesson.id, id(7), s3, 'target', others, rng)
+      : { id: id(7), lessonId: lesson.id, type: 'type', prompt: s3.native, lang: 'target', answers: [s3.target, ...(s3.targetAlts ?? [])] },
+    buildFrom(course, lesson.id, id(8), listenSentence, 'target', others, rng, true),
   ]
 }
 

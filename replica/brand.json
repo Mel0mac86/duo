@@ -1,5 +1,5 @@
 {
-  "avoid": ["Duolingo", "Duo the owl", "Lily", "Bea", "Zari", "Oscar"],
+  "avoid": ["Duolingo", "Duo the owl", "Lily", "Zari", "Oscar"],
   "domains": ["duolingo.com", "duolingo.cn"],
   "colors": ["#58cc02", "#58a700", "#1cb0f6", "#ff4b4b", "#ffc800", "#ce82ff", "#89e219"]
 }

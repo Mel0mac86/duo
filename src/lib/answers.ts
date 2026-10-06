@@ -14,15 +14,33 @@ const CONTRACTIONS: [RegExp, string][] = [
   [/\bcan not\b/g, 'cannot'],
 ]
 
+const PUNCTUATION = /[.,!?¡¿;:"“”«»()…\-–—/。，、！？：；「」『』・]/g
+const TILE_PUNCTUATION = /[.,!?¡¿;:"“”«»()…。，、！？：；「」『』]/g
+
+const COMBINING_MARKS = new RegExp(`[${String.fromCharCode(0x300)}-${String.fromCharCode(0x36f)}]`, 'g')
+const DOTTED_I = new RegExp(`i${String.fromCharCode(0x307)}`, 'g')
+
+// letters that do not decompose into a base letter plus an accent
+const SPECIAL: Record<string, string> = { 'ł': 'l', 'ß': 'ss', 'ø': 'o', 'đ': 'd', 'æ': 'ae', 'œ': 'oe', 'ı': 'i' }
+
 export function stripAccents(text: string): string {
-  return text.normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return text
+    .normalize('NFD')
+    .replace(COMBINING_MARKS, '')
+    .replace(/[łßøđæœı]/g, (c) => SPECIAL[c])
 }
 
 export function normalize(text: string): string {
-  let t = text.normalize('NFC').toLowerCase().replace(/[’‘`´]/g, "'")
+  let t = text
+    .normalize('NFC')
+    .toLowerCase()
+    .replace(DOTTED_I, 'i') // Turkish capital dotted I lowercases to i + combining dot
+    .replace(/ş/g, 'ș') // Romanian: cedilla and comma-below are both typed
+    .replace(/ţ/g, 'ț')
+    .replace(/[’‘`´]/g, "'")
   for (const [re, to] of CONTRACTIONS) t = t.replace(re, to)
   return t
-    .replace(/[.,!?¡¿;:"“”«»()…\-–—/]/g, ' ')
+    .replace(PUNCTUATION, ' ')
     .replace(/'/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
@@ -59,26 +77,34 @@ function closeEnough(input: string, answer: string): boolean {
   return typos <= Math.max(1, Math.floor(b.length / 4))
 }
 
-export function checkAnswer(input: string, answers: string[], opts: { typos?: boolean } = {}): Verdict {
-  const expected = answers[0]
-  const given = normalize(input)
+/** Chinese and Japanese data marks tiles with spaces; the text shown drops them. */
+export function compactText(text: string): string {
+  return text.replace(/\s+/g, '')
+}
+
+export function checkAnswer(
+  input: string,
+  answers: string[],
+  opts: { typos?: boolean; compact?: boolean } = {},
+): Verdict {
+  const norm = (t: string) => (opts.compact ? normalize(t).replace(/ /g, '') : normalize(t))
+  const show = (t: string) => (opts.compact ? compactText(t) : t)
+  const expected = show(answers[0])
+  const given = norm(input)
   if (!given) return { correct: false, note: null, expected }
-  const normed = answers.map(normalize)
+  const normed = answers.map(norm)
   if (normed.includes(given)) return { correct: true, note: null, expected }
   const bare = stripAccents(given)
   const match = answers.find((_, i) => stripAccents(normed[i]) === bare)
-  if (match) return { correct: true, note: 'accent', expected: match }
-  if (opts.typos) {
+  if (match) return { correct: true, note: 'accent', expected: show(match) }
+  if (opts.typos && !opts.compact) {
     const near = answers.find((_, i) => closeEnough(bare, stripAccents(normed[i])))
     if (near) return { correct: true, note: 'typo', expected: near }
   }
   return { correct: false, note: null, expected }
 }
 
-/** Splits a sentence into word-bank tiles, keeping apostrophes inside words. */
+/** Splits a sentence into word-bank tiles, keeping apostrophes and hyphens inside words. */
 export function toTiles(sentence: string): string[] {
-  return sentence
-    .replace(/[.,!?¡¿;:"“”«»()…]/g, ' ')
-    .split(/\s+/)
-    .filter(Boolean)
+  return sentence.replace(TILE_PUNCTUATION, ' ').split(/\s+/).filter(Boolean)
 }

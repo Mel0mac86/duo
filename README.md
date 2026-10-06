@@ -9,7 +9,9 @@ app per lingue, scritto da zero, con nome, colori, logo e contenuti propri.
 
 ## Cosa c'è
 
-- **2 corsi** per chi parla italiano: Inglese (3 unità, 12 lezioni) e Spagnolo (2 unità, 6 lezioni)
+- **15 corsi** per chi parla italiano: Inglese (12 lezioni), Spagnolo, Francese, Tedesco, Portoghese, Polacco,
+  Cinese, Giapponese, Coreano, Russo, Greco, Olandese, Svedese, Turco e Rumeno (6 lezioni ciascuno)
+- cinese, giapponese, coreano, russo e greco mostrano la pronuncia in lettere latine (pinyin, rōmaji…)
 - **5 tipi di esercizio**: scegli la parola, componi la frase, scrivi la traduzione, abbina le coppie, ascolta e scrivi
 - correzione tollerante: maiuscole, punteggiatura, contrazioni inglesi, accenti e piccoli errori di battitura (segnalati)
 - gli errori tornano a fine lezione finché non li azzecchi
@@ -30,15 +32,17 @@ npm run build      # sito statico in dist/ (base relativa: va su qualsiasi hosti
 ## Test
 
 ```bash
-npm test           # Vitest: 25 test sulla logica
-npm run e2e        # Playwright: 7 flussi × desktop e mobile
+npm test           # Vitest: 42 test sulla logica e su tutti i corsi
+npm run e2e        # Playwright: 9 flussi × desktop e mobile (anche polacco e cinese)
 SCREENS=1 npx playwright test screens   # screenshot in replica/clone-screens/
 ```
 
 ## Struttura
 
 ```
-src/data/courses.ts    contenuti dei corsi (originali)
+src/data/courses.ts    corsi di inglese e spagnolo, elenco dei corsi
+src/data/syllabus.ts   programma comune (in italiano) delle altre lingue
+src/data/languages.ts  traduzioni del programma nelle altre 13 lingue
 src/lib/answers.ts     correzione delle risposte
 src/lib/lesson.ts      generazione esercizi e coda della lezione
 src/lib/store.ts       XP, serie, cuori, salvataggio
@@ -48,4 +52,5 @@ replica/               recon, architettura, design token, piano test, bug, parit
 
 ## Prossimi passi
 
-Account e sincronizzazione (Supabase), classifiche settimanali, più unità, app icon 1024px.
+Account e sincronizzazione (Supabase), classifiche settimanali, più unità per le nuove lingue,
+revisione dei contenuti da parte di madrelingua.

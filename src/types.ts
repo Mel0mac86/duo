@@ -2,6 +2,8 @@ export interface Word {
   native: string
   target: string
   emoji: string
+  /** romanization of the target word (non-Latin scripts) */
+  roman?: string
 }
 
 export interface Sentence {
@@ -11,6 +13,8 @@ export interface Sentence {
   targetAlts?: string[]
   /** other accepted translations into the native language */
   nativeAlts?: string[]
+  /** romanization of the target sentence (non-Latin scripts) */
+  roman?: string
 }
 
 export interface LessonDef {
@@ -35,6 +39,10 @@ export interface Course {
   title: string
   targetName: string
   flag: string
+  /** target written without spaces between words; spaces in the data only split tiles */
+  compact?: boolean
+  /** target not written in the Latin alphabet: no typing exercise */
+  nonLatin?: boolean
   units: Unit[]
 }
 
@@ -46,7 +54,7 @@ interface ExerciseBase {
 export interface SelectExercise extends ExerciseBase {
   type: 'select'
   prompt: string
-  options: { text: string; emoji: string }[]
+  options: { text: string; emoji: string; roman?: string }[]
   answer: string
 }
 
@@ -60,6 +68,9 @@ export interface BuildExercise extends ExerciseBase {
   lang: 'target' | 'native'
   tiles: string[]
   answers: string[]
+  /** romanization of the target sentence shown or spoken */
+  roman?: string
+  compact?: boolean
 }
 
 export interface TypeExercise extends ExerciseBase {
@@ -67,11 +78,12 @@ export interface TypeExercise extends ExerciseBase {
   prompt: string
   lang: 'target' | 'native'
   answers: string[]
+  compact?: boolean
 }
 
 export interface MatchExercise extends ExerciseBase {
   type: 'match'
-  pairs: { native: string; target: string }[]
+  pairs: { native: string; target: string; roman?: string }[]
 }
 
 export type Exercise = SelectExercise | BuildExercise | TypeExercise | MatchExercise
