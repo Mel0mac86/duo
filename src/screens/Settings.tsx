@@ -4,8 +4,8 @@ import { courses } from '../data/courses'
 import { GOALS } from './Onboarding'
 import { Modal } from '../components/Chrome'
 
-export function Settings({ state, onChange, onReset }: {
-  state: SaveState; onChange: (patch: Partial<SaveState>) => void; onReset: () => void
+export function Settings({ state, canSpeak, onChange, onReset }: {
+  state: SaveState; canSpeak: boolean; onChange: (patch: Partial<SaveState>) => void; onReset: () => void
 }) {
   const [confirm, setConfirm] = useState(false)
   return (
@@ -35,6 +35,30 @@ export function Settings({ state, onChange, onReset }: {
           ))}
         </div>
       </section>
+
+      <section className="section card">
+        <label className="row" htmlFor="hearts">
+          <span>
+            Cuori (modalità sfida)
+            <small className="hint">{state.heartsOn
+              ? 'Ogni errore costa un cuore; senza cuori ti fermi o ripassi.'
+              : 'Spenti: studi quanto vuoi, gli errori non hanno limiti.'}</small>
+          </span>
+          <input id="hearts" type="checkbox" className="switch" checked={state.heartsOn} onChange={(e) => onChange({ heartsOn: e.target.checked })} />
+        </label>
+      </section>
+
+      {canSpeak && (
+        <section className="section card">
+          <label className="row" htmlFor="speak">
+            <span>
+              Esercizi di pronuncia
+              <small className="hint">Leggi una frase ad alta voce in ogni lezione.</small>
+            </span>
+            <input id="speak" type="checkbox" className="switch" checked={state.speakOn} onChange={(e) => onChange({ speakOn: e.target.checked })} />
+          </label>
+        </section>
+      )}
 
       <section className="section card">
         <label className="row" htmlFor="sound">

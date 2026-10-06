@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { checkAnswer, normalize, toTiles } from './answers'
+import { checkAnswer, checkSpoken, normalize, toTiles } from './answers'
+import { tipsFor } from '../data/tips'
 import { answerRun, buildLesson, buildPractice, nextRun, runDone, seededRng, startRun } from './lesson'
 import * as store from './store'
 import { allLessons, courses, english } from '../data/courses'
@@ -151,7 +152,8 @@ describe('store', () => {
     s = store.completeLesson(s, lesson(), at(2026, 3, 2)).state
     expect(s.streak).toBe(2)
     expect(store.currentStreak(s, at(2026, 3, 3))).toBe(2) // yesterday still counts
-    expect(store.currentStreak(s, at(2026, 3, 4))).toBe(0)
+    expect(store.currentStreak(s, at(2026, 3, 4))).toBe(2) // one missed day: the weekly free day
+    expect(store.currentStreak(s, at(2026, 3, 5))).toBe(0)
     s = store.completeLesson(s, lesson(), at(2026, 3, 5)).state
     expect(s.streak).toBe(1)
   })
@@ -228,5 +230,59 @@ describe('store', () => {
     expect(store.load(5).hearts).toBe(5)
     mem[store.KEY] = JSON.stringify({ ...store.fresh(0), streak: 4 })
     expect(store.load(5).streak).toBe(4)
+  })
+})
+
+describe('fixes from user feedback', () => {
+  const lesson = (over: Partial<LessonResult> = {}): LessonResult =>
+    ({ courseId: 'en-it', lessonId: 'en-u1-l1', practice: false, mistakes: 1, total: 9, ms: 60000, ...over })
+
+  it('hearts are off by default', () => {
+    expect(store.fresh().heartsOn).toBe(false)
+  })
+
+  it('one missed day a week keeps the streak (free day)', () => {
+    let s = store.completeLesson(store.fresh(), lesson(), at(2026, 3, 1)).state
+    s = store.completeLesson(s, lesson(), at(2026, 3, 2)).state
+    // 3 March missed
+    expect(store.currentStreak(s, at(2026, 3, 4))).toBe(2)
+    const c = store.completeLesson(s, lesson(), at(2026, 3, 4))
+    expect(c.usedFreeDay).toBe(true)
+    expect(c.state.streak).toBe(3)
+    expect(c.state.freeDayUsed).toBe('2026-03-03')
+    s = c.state
+    // a second miss within the week breaks it
+    expect(store.freeDayAvailable(s, at(2026, 3, 6))).toBe(false)
+    expect(store.currentStreak(s, at(2026, 3, 6))).toBe(0)
+    // a week later the free day is back
+    expect(store.freeDayAvailable(s, at(2026, 3, 10))).toBe(true)
+  })
+
+  it('two missed days in a row break the streak even with a free day', () => {
+    const s = store.completeLesson(store.fresh(), lesson(), at(2026, 3, 1)).state
+    expect(store.currentStreak(s, at(2026, 3, 4))).toBe(0)
+  })
+
+  it('a lesson has a speaking exercise only when asked, and practice never has one', () => {
+    const l = english.units[0].lessons[0]
+    expect(buildLesson(english, l, seededRng(3)).some((e) => e.type === 'speak')).toBe(false)
+    const withSpeak = buildLesson(english, l, seededRng(3), { speak: true })
+    expect(withSpeak).toHaveLength(10)
+    expect(withSpeak.at(-1)!.type).toBe('speak')
+    expect(buildPractice(english, ['en-u1-l1'], [], seededRng(4)).some((e) => e.type === 'speak')).toBe(false)
+  })
+
+  it('spoken answers forgive what speech recognition gets slightly wrong', () => {
+    expect(checkSpoken(['the cat drinks milk'], ['The cat drinks milk.']).correct).toBe(true)
+    expect(checkSpoken(['the cut drinks milk'], ['The cat drinks milk.']).correct).toBe(true)
+    expect(checkSpoken(['something else entirely'], ['The cat drinks milk.']).correct).toBe(false)
+    expect(checkSpoken(['猫喝牛奶'], ['猫 喝 牛奶 。'], true).correct).toBe(true)
+    expect(checkSpoken(['nope', 'The cat drinks milk'], ['The cat drinks milk.']).correct).toBe(true)
+  })
+
+  it('every lesson of every course has tips', () => {
+    for (const course of courses) {
+      for (const l of allLessons(course)) expect(tipsFor(l.id).length, l.id).toBeGreaterThan(0)
+    }
   })
 })

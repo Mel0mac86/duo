@@ -16,6 +16,8 @@ import { TopBar, TabBar } from './components/Chrome'
 import type { Tab } from './components/Chrome'
 import { sfx } from './lib/sound'
 import { useNow } from './lib/useNow'
+import { canRecognize } from './lib/speech'
+import { tipsFor } from './data/tips'
 
 type Route =
   | { name: 'tab' }
@@ -69,12 +71,12 @@ export default function App() {
   const startLesson = (lessonId: string) => {
     const lesson = findLesson(course, lessonId)
     if (!lesson) return
-    if (store.refillHearts(state, Date.now()).hearts <= 0) {
+    if (state.heartsOn && store.refillHearts(state, Date.now()).hearts <= 0) {
       setRoute({ name: 'no-hearts' })
       return
     }
     const seed = Date.now()
-    const exercises = buildLesson(course, lesson, seededRng(seed))
+    const exercises = buildLesson(course, lesson, seededRng(seed), { speak: state.speakOn && canRecognize() })
     setRoute({ name: 'lesson', lessonId, exercises, startedAt: Date.now(), seed })
   }
 
@@ -114,10 +116,18 @@ export default function App() {
         exercises={route.exercises}
         practice={practice}
         hearts={state.hearts}
+        heartsOn={state.heartsOn}
         sound={state.sound}
+        tips={route.lessonId ? tipsFor(route.lessonId) : []}
+        showTips={!!route.lessonId && !state.tipsSeen.includes(route.lessonId)}
+        onTipsSeen={() => {
+          const id = route.lessonId
+          if (id) update((s) => (s.tipsSeen.includes(id) ? s : { ...s, tipsSeen: [...s.tipsSeen, id] }))
+        }}
         onWrong={(ex) => update((s) => {
-          const marked = store.recordMistake(s, course.id, ex)
-          return practice ? marked : store.loseHeart(marked, Date.now())
+          // speaking is practised in lessons, not in review
+          const marked = ex.type === 'speak' ? s : store.recordMistake(s, course.id, ex)
+          return practice || !s.heartsOn ? marked : store.loseHeart(marked, Date.now())
         })}
         onRight={(ex) => { if (practice) update((s) => store.clearMistake(s, course.id, ex.id)) }}
         onFinish={finish}
@@ -133,6 +143,7 @@ export default function App() {
         completion={route.completion}
         result={route.result}
         streak={store.currentStreak(route.completion.state, now)}
+        heartsOn={state.heartsOn}
         onContinue={() => go('learn')}
       />
     )
@@ -147,7 +158,7 @@ export default function App() {
         course={course}
         streak={store.currentStreak(state, now)}
         xp={store.totalXp(state)}
-        hearts={state.hearts}
+        hearts={state.heartsOn ? state.hearts : null}
         onCourse={() => go('settings')}
       />
       <main className="page" id="main">
@@ -160,6 +171,7 @@ export default function App() {
             dailyGoal={state.dailyGoal}
             mistakes={progress.mistakes.length}
             canPractice={canPractice}
+            heartsOn={state.heartsOn}
             onStart={startLesson}
             onPractice={startPractice}
           />
@@ -168,6 +180,7 @@ export default function App() {
         {tab === 'settings' && (
           <Settings
             state={state}
+            canSpeak={canRecognize()}
             onChange={(patch) => update((s) => ({ ...s, ...patch }))}
             onReset={() => {
               update(() => store.fresh())

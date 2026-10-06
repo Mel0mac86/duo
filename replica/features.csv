@@ -24,8 +24,8 @@ XP chart for the last 7 days,profile,could,yes,yes,
 Achievements,profile,could,yes,yes,
 Daily goal progress on the path,progress,should,yes,yes,
 Sound effects on correct and wrong,lesson,could,yes,yes,
-Many courses,courses,should,yes,yes,15 courses for Italian speakers; 13 share one 6-lesson syllabus
-Non-Latin scripts with romanization,courses,should,yes,yes,zh ja ko ru el; compact tiles for zh ja
+Many courses,courses,should,yes,yes,18 courses for Italian speakers; 16 share one 6-lesson syllabus
+Non-Latin scripts with romanization,courses,should,yes,yes,zh ja ko ru uk el ar hi; compact tiles for zh ja; right-to-left tiles for ar
 Settings (goal sound reset),settings,should,yes,yes,
 Progress saved between visits,progress,must,yes,yes,per device (localStorage); no account sync yet
 Leaderboards / leagues,social,could,yes,skip,needs a network of real users and a server
@@ -33,8 +33,8 @@ Friends and following,social,could,yes,skip,needs a network of real users and a 
 Gems shop and ads,monetisation,could,yes,skip,business model not part of learning
 AI video call,premium,should,yes,skip,licensed models and their own prompts
 Their course content and audio,content,must,yes,skip,owned content; all sentences written fresh
-Hearts optional (no daily limit),fixes,should,no,no,P1: answers the energy-system complaint
-Grammar tips before each lesson,fixes,should,no,no,P2
-Speaking exercise with speech recognition,fixes,should,no,no,P3
-Gentle streak (one free day a week),fixes,could,no,no,P4
-Report a content error from any answer,fixes,could,no,no,P5
+Hearts optional (no daily limit),fixes,should,no,yes,P1: answers the energy-system complaint
+Grammar tips before each lesson,fixes,should,no,yes,P2
+Speaking exercise with speech recognition,fixes,should,no,yes,P3
+Gentle streak (one free day a week),fixes,could,no,yes,P4
+Report a content error from any answer,fixes,could,no,yes,P5

@@ -73,7 +73,7 @@ function wordPool(course: Course, lesson: LessonDef): Word[] {
   return lessons.slice(0, idx + 1).reverse().flatMap((l) => l.words)
 }
 
-export function buildLesson(course: Course, lesson: LessonDef, rng: Rng): Exercise[] {
+export function buildLesson(course: Course, lesson: LessonDef, rng: Rng, opts: { speak?: boolean } = {}): Exercise[] {
   const pool = allLessons(course).flatMap((l) => l.sentences)
   const others = pool.filter((s) => !lesson.sentences.includes(s))
   const words = wordPool(course, lesson)
@@ -114,6 +114,17 @@ export function buildLesson(course: Course, lesson: LessonDef, rng: Rng): Exerci
       ? buildFrom(course, lesson.id, id(7), s3, 'target', others, rng)
       : { id: id(7), lessonId: lesson.id, type: 'type', prompt: s3.native, lang: 'target', answers: [s3.target, ...(s3.targetAlts ?? [])] },
     buildFrom(course, lesson.id, id(8), listenSentence, 'target', others, rng, true),
+    ...(opts.speak
+      ? [{
+          id: id(9),
+          lessonId: lesson.id,
+          type: 'speak' as const,
+          prompt: s1.target,
+          roman: s1.roman,
+          answers: [s1.target, ...(s1.targetAlts ?? [])],
+          compact: course.compact,
+        }]
+      : []),
   ]
 }
 
@@ -122,7 +133,7 @@ export function buildPractice(course: Course, completed: string[], mistakes: Exe
   const out = mistakes.slice(-6).reverse()
   const done = allLessons(course).filter((l) => completed.includes(l.id))
   if (done.length) {
-    const extra = shuffle(done, rng).flatMap((l) => buildLesson(course, l, rng)).filter((e) => e.type !== 'match')
+    const extra = shuffle(done, rng).flatMap((l) => buildLesson(course, l, rng)).filter((e) => e.type !== 'match' && e.type !== 'speak')
     for (const e of shuffle(extra, rng)) {
       if (out.length >= 8) break
       if (!out.some((o) => o.id === e.id)) out.push(e)

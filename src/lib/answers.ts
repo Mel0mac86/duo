@@ -60,7 +60,7 @@ export function levenshtein(a: string, b: string): number {
 }
 
 export type Verdict =
-  | { correct: true; note: null | 'accent' | 'typo'; expected: string }
+  | { correct: true; note: null | 'accent' | 'typo' | 'skip'; expected: string }
   | { correct: false; note: null; expected: string }
 
 /** One misspelt word is forgiven per four words, only in words of five letters or more. */
@@ -107,4 +107,23 @@ export function checkAnswer(
 /** Splits a sentence into word-bank tiles, keeping apostrophes and hyphens inside words. */
 export function toTiles(sentence: string): string[] {
   return sentence.replace(TILE_PUNCTUATION, ' ').split(/\s+/).filter(Boolean)
+}
+
+/**
+ * Spoken answers: speech recognition makes its own small mistakes, so any of its guesses
+ * that is within 25% of an accepted answer (by edit distance) counts.
+ */
+export function checkSpoken(heard: string[], answers: string[], compact?: boolean): Verdict {
+  const norm = (t: string) => stripAccents(compact ? normalize(t).replace(/ /g, '') : normalize(t))
+  const expected = compact ? compactText(answers[0]) : answers[0]
+  for (const h of heard) {
+    const v = checkAnswer(h, answers, { typos: true, compact })
+    if (v.correct) return v
+    const said = norm(h)
+    for (const a of answers) {
+      const want = norm(a)
+      if (want && levenshtein(said, want) <= Math.floor(want.length / 4)) return { correct: true, note: 'typo', expected }
+    }
+  }
+  return { correct: false, note: null, expected }
 }

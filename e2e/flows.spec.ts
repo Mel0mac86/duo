@@ -15,6 +15,27 @@ const tiles = (s: string, locale: string) =>
 test.beforeEach(() => { course = english })
 
 test.beforeEach(async ({ page }) => {
+  // A stand-in for the phone's speech recognition: it "hears" the sentence on screen,
+  // or whatever a test puts in window.__say.
+  await page.addInitScript(() => {
+    class FakeRecognition {
+      onresult: ((e: unknown) => void) | null = null
+      onerror: ((e: unknown) => void) | null = null
+      onend: (() => void) | null = null
+      start() {
+        setTimeout(() => {
+          const w = window as unknown as { __say?: string }
+          const said = w.__say ?? document.querySelector('[data-testid=prompt]')?.textContent ?? ''
+          this.onresult?.({ results: [[{ transcript: said }]] })
+          this.onend?.()
+        }, 30)
+      }
+      abort() {}
+    }
+    const w = window as unknown as { SpeechRecognition: unknown; webkitSpeechRecognition: unknown }
+    w.SpeechRecognition = FakeRecognition
+    w.webkitSpeechRecognition = FakeRecognition
+  })
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
   page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('fonts.g')) errors.push(m.text()) })
@@ -35,6 +56,19 @@ async function onboard(page: Page, course = 'Inglese') {
   await page.getByRole('button', { name: 'Inizia a imparare' }).click()
 }
 
+/** Opens a lesson node, going past the tips page when it is shown. */
+async function openLesson(page: Page, name = 'Saluti, da fare') {
+  await page.getByRole('button', { name }).click()
+  const start = page.getByRole('button', { name: 'Inizia la lezione' })
+  if (await start.isVisible({ timeout: 2000 }).catch(() => false)) await start.click()
+}
+
+async function enableHearts(page: Page) {
+  await page.getByRole('link', { name: 'Impostazioni' }).click()
+  await page.getByLabel(/Cuori \(modalità sfida\)/).check()
+  await page.getByRole('link', { name: 'Impara' }).click()
+}
+
 async function clickTiles(page: Page, answer: string, locale: string) {
   for (const t of tiles(answer, locale)) {
     await page.getByTestId('bank').getByRole('button', { name: t, exact: true }).first().click()
@@ -45,8 +79,17 @@ async function clickTiles(page: Page, answer: string, locale: string) {
 async function answer(page: Page, wrong = false): Promise<boolean> {
   const title = (await page.locator('.ex-title').textContent({ timeout: 5000 }).catch(() => null)) ?? ''
   if (!title) return false
+  if (title === 'Prima di iniziare') {
+    await page.getByRole('button', { name: 'Inizia la lezione' }).click()
+    return answer(page, wrong)
+  }
 
-  if (title.startsWith('Quale di questi')) {
+  if (title === 'Leggi ad alta voce') {
+    if (wrong) await page.evaluate(() => { (window as unknown as { __say?: string }).__say = 'zzz qqq www' })
+    await page.getByRole('button', { name: 'Tocca e parla' }).click()
+    await expect(page.getByText(/Hai detto/)).toBeVisible()
+    await page.evaluate(() => { delete (window as unknown as { __say?: string }).__say })
+  } else if (title.startsWith('Quale di questi')) {
     const native = title.match(/«(.+)»/)![1]
     const target = words().find((w) => w.native === native)!.target
     const options = page.locator('.choice')
@@ -120,9 +163,10 @@ test('F01 a new learner finishes the first lesson: XP, streak, next lesson unloc
   await expect(page.getByTestId('goal')).toHaveText('10 / 10 XP')
 })
 
-test('F03 a wrong answer costs a heart and comes back later', async ({ page }) => {
+test('F03 with hearts on, a wrong answer costs a heart and comes back later', async ({ page }) => {
   await onboard(page)
-  await page.getByRole('button', { name: 'Saluti, da fare' }).click()
+  await enableHearts(page)
+  await openLesson(page)
   await expect(page.getByTestId('lesson-hearts')).toContainText('5')
   await answer(page, true)
   await expect(page.getByTestId('lesson-hearts')).toContainText('4')
@@ -137,7 +181,7 @@ test('F03 a wrong answer costs a heart and comes back later', async ({ page }) =
 
 test('F03 Check is disabled until there is an answer; Enter checks', async ({ page }) => {
   await onboard(page)
-  await page.getByRole('button', { name: 'Saluti, da fare' }).click()
+  await openLesson(page)
   await expect(page.getByRole('button', { name: 'Verifica' })).toBeDisabled()
   await page.keyboard.press('1')
   await expect(page.getByRole('button', { name: 'Verifica' })).toBeEnabled()
@@ -147,7 +191,8 @@ test('F03 Check is disabled until there is an answer; Enter checks', async ({ pa
 
 test('F04 out of hearts: blocked, then practice gives one back', async ({ page }) => {
   await onboard(page)
-  await page.getByRole('button', { name: 'Saluti, da fare' }).click()
+  await enableHearts(page)
+  await openLesson(page)
   // matching pairs cannot be failed, so keep answering wrong until the hearts run out
   for (let i = 0; i < 10 && !(await page.getByRole('dialog').isVisible()); i++) {
     await answer(page, true)
@@ -170,7 +215,7 @@ test('F04 out of hearts: blocked, then practice gives one back', async ({ page }
 
 test('F02 quitting a lesson asks first and keeps nothing', async ({ page }) => {
   await onboard(page)
-  await page.getByRole('button', { name: 'Saluti, da fare' }).click()
+  await openLesson(page)
   await page.getByRole('button', { name: 'Esci dalla lezione' }).click()
   await page.getByRole('button', { name: 'Continua la lezione' }).click()
   await expect(page.locator('.ex-title')).toBeVisible()
@@ -199,7 +244,7 @@ test('F06 profile, settings: switch course, change goal, reset', async ({ page }
 
 test('typed answers forgive case and punctuation', async ({ page }) => {
   await onboard(page)
-  await page.getByRole('button', { name: 'Saluti, da fare' }).click()
+  await openLesson(page)
   // walk to the typing exercise
   for (let i = 0; i < 12; i++) {
     const title = await page.locator('.ex-title').textContent()
@@ -224,3 +269,60 @@ for (const c of [polish, chinese, arabic, hindi]) {
     await expect(page.getByRole('button', { name: 'Persone, da fare' })).toBeEnabled()
   })
 }
+
+test('P1 hearts are off by default: mistakes never stop you', async ({ page }) => {
+  await onboard(page)
+  await expect(page.getByTestId('hearts')).toHaveCount(0)
+  await openLesson(page)
+  await expect(page.getByTestId('lesson-hearts')).toHaveCount(0)
+  for (let i = 0; i < 7; i++) {
+    await answer(page, true)
+    await page.getByRole('button', { name: 'Continua' }).click()
+  }
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await finishLesson(page)
+  await expect(page.getByRole('heading', { name: 'Lezione completata!' })).toBeVisible()
+})
+
+test('P2 tips show before a new lesson, once, and stay one tap away', async ({ page }) => {
+  await onboard(page)
+  await page.getByRole('button', { name: 'Saluti, da fare' }).click()
+  await expect(page.getByRole('heading', { name: 'Prima di iniziare' })).toBeVisible()
+  await expect(page.getByText(/My name is/)).toBeVisible()
+  await page.getByRole('button', { name: 'Inizia la lezione' }).click()
+  await page.getByRole('button', { name: 'Suggerimenti della lezione' }).click()
+  await expect(page.getByRole('dialog', { name: 'Suggerimenti' })).toBeVisible()
+  await page.getByRole('button', { name: 'Ho capito' }).click()
+  await page.getByRole('button', { name: 'Esci dalla lezione' }).click()
+  await page.getByRole('button', { name: 'Esci', exact: true }).click()
+  // second time: straight into the exercises
+  await page.getByRole('button', { name: 'Saluti, da fare' }).click()
+  await expect(page.getByRole('heading', { name: 'Prima di iniziare' })).toHaveCount(0)
+  await expect(page.locator('.ex-title')).toContainText('Quale di questi')
+})
+
+test('P3 speaking: right, wrong and skip', async ({ page }) => {
+  await onboard(page)
+  await openLesson(page)
+  for (let i = 0; i < 12; i++) {
+    if ((await page.locator('.ex-title').textContent()) === 'Leggi ad alta voce') break
+    await answer(page)
+    await page.getByRole('button', { name: 'Continua' }).click()
+  }
+  await expect(page.locator('.ex-title')).toHaveText('Leggi ad alta voce')
+  await answer(page, true)
+  await page.getByRole('button', { name: 'Continua' }).click()
+  // the sentence comes back; this time skip it
+  await expect(page.locator('.ex-title')).toHaveText('Leggi ad alta voce')
+  await page.getByRole('button', { name: 'Non posso parlare ora' }).click()
+  await expect(page.getByRole('heading', { name: /Nessun problema/ })).toBeVisible()
+})
+
+test('P5 every answer can be reported as a content error', async ({ page }) => {
+  await onboard(page)
+  await openLesson(page)
+  await answer(page, true)
+  const link = page.getByRole('link', { name: 'Segnala un errore' })
+  await expect(link).toHaveAttribute('href', /github\.com\/Mel0mac86\/duo\/issues\/new\?title=.*en-u1-l1/)
+  await expect(link).toHaveAttribute('target', '_blank')
+})

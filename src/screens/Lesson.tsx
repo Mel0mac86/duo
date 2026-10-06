@@ -1,18 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { BuildExercise, Course, Exercise, MatchExercise, SelectExercise, TypeExercise } from '../types'
-import { checkAnswer, compactText } from '../lib/answers'
+import type { BuildExercise, Course, Exercise, MatchExercise, SelectExercise, SpeakExercise, TypeExercise } from '../types'
+import { checkAnswer, checkSpoken, compactText } from '../lib/answers'
 import type { Verdict } from '../lib/answers'
 import { answerRun, nextRun, runDone, runProgress, shuffle, startRun } from '../lib/lesson'
 import type { Run } from '../lib/lesson'
 import { canSpeak, sfx, speak } from '../lib/sound'
 import { Modal } from '../components/Chrome'
+import { listenOnce } from '../lib/speech'
+import { REPORT_URL } from '../config'
 
 interface Props {
   course: Course
   exercises: Exercise[]
   practice: boolean
   hearts: number
+  heartsOn: boolean
   sound: boolean
+  /** grammar notes for this lesson */
+  tips: string[]
+  /** open the notes before the first exercise */
+  showTips: boolean
+  onTipsSeen: () => void
   onWrong: (ex: Exercise) => void
   onRight: (ex: Exercise) => void
   onFinish: (run: Run) => void
@@ -20,14 +28,18 @@ interface Props {
   onOutOfHearts: () => void
 }
 
+const SKIP = '__skip__'
+
 const PRAISE = ['Ottimo!', 'Perfetto!', 'Esatto!', 'Bravissimo!', 'Ben fatto!']
 
 export function Lesson(props: Props) {
-  const { course, practice, hearts, sound, onWrong, onRight, onFinish, onQuit, onOutOfHearts } = props
+  const { course, practice, hearts, heartsOn, sound, tips, onWrong, onRight, onFinish, onQuit, onOutOfHearts, onTipsSeen } = props
   const [run, setRun] = useState(() => startRun(props.exercises))
   const [answer, setAnswer] = useState<string | null>(null)
   const [verdict, setVerdict] = useState<Verdict | null>(null)
   const [quitting, setQuitting] = useState(false)
+  const [tipsOpen, setTipsOpen] = useState(props.showTips && tips.length > 0)
+  const [answerGiven, setAnswerGiven] = useState('')
   const ex = run.queue[run.index]
 
   const check = useCallback((given?: string) => {
@@ -36,8 +48,10 @@ export function Lesson(props: Props) {
     let v: Verdict
     if (ex.type === 'select') v = value === ex.answer ? { correct: true, note: null, expected: ex.answer } : { correct: false, note: null, expected: ex.answer }
     else if (ex.type === 'match') v = { correct: true, note: null, expected: '' }
+    else if (ex.type === 'speak') v = value === SKIP ? { correct: true, note: 'skip', expected: '' } : checkSpoken(value.split('\n'), ex.answers, ex.compact)
     else v = checkAnswer(value, ex.answers, { typos: ex.type === 'type', compact: ex.compact })
     setVerdict(v)
+    setAnswerGiven(value)
     setRun((r) => answerRun(r, v.correct))
     if (v.correct) {
       onRight(ex)
@@ -50,7 +64,7 @@ export function Lesson(props: Props) {
 
   const proceed = useCallback(() => {
     if (!verdict) return
-    if (!verdict.correct && !practice && hearts <= 0) {
+    if (!verdict.correct && heartsOn && !practice && hearts <= 0) {
       onOutOfHearts()
       return
     }
@@ -62,12 +76,12 @@ export function Lesson(props: Props) {
     setRun(next)
     setAnswer(null)
     setVerdict(null)
-  }, [verdict, practice, hearts, run, onFinish, onOutOfHearts])
+  }, [verdict, heartsOn, practice, hearts, run, onFinish, onOutOfHearts])
 
   // Enter checks, then continues
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Enter' || e.shiftKey || quitting) return
+      if (e.key !== 'Enter' || e.shiftKey || quitting || tipsOpen) return
       const t = e.target as HTMLElement
       if (t.tagName === 'BUTTON') return
       e.preventDefault()
@@ -76,9 +90,31 @@ export function Lesson(props: Props) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [verdict, proceed, check, quitting])
+  }, [verdict, proceed, check, quitting, tipsOpen])
 
   if (!ex) return null
+
+  const closeTips = () => {
+    setTipsOpen(false)
+    onTipsSeen()
+  }
+
+  if (tipsOpen && run.index === 0 && !verdict && props.showTips) {
+    return (
+      <div className="lesson">
+        <main className="lesson-body tips-page">
+          <div className="big-emoji" aria-hidden="true">💡</div>
+          <h1 className="ex-title">Prima di iniziare</h1>
+          <TipList tips={tips} />
+        </main>
+        <footer className="footer">
+          <div className="footer-inner" style={{ justifyContent: 'flex-end' }}>
+            <button className="btn" onClick={closeTips} autoFocus>Inizia la lezione</button>
+          </div>
+        </footer>
+      </div>
+    )
+  }
   const pct = Math.round(runProgress(run) * 100)
   const praise = PRAISE[run.index % PRAISE.length]
 
@@ -86,18 +122,20 @@ export function Lesson(props: Props) {
     <div className="lesson">
       <div className="lesson-top">
         <button className="icon-btn" aria-label="Esci dalla lezione" onClick={() => setQuitting(true)}>✕</button>
+        {tips.length > 0 && <button className="icon-btn" aria-label="Suggerimenti della lezione" onClick={() => setTipsOpen(true)}>💡</button>}
         <div className="bar" role="progressbar" aria-label="Avanzamento lezione" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
           <span style={{ width: `${pct}%` }} />
         </div>
         {practice
           ? <span className="chip xp" aria-label="Ripasso">🔁</span>
-          : <span className="chip heart" data-testid="lesson-hearts"><span className="emoji" aria-hidden="true">❤️</span><span className="sr-only">Cuori:</span>{hearts}</span>}
+          : heartsOn && <span className="chip heart" data-testid="lesson-hearts"><span className="emoji" aria-hidden="true">❤️</span><span className="sr-only">Cuori:</span>{hearts}</span>}
       </div>
 
       <main className="lesson-body" key={run.index}>
         {ex.type === 'select' && <Select ex={ex} course={course} sound={sound} value={answer} locked={!!verdict} verdict={verdict} onChange={setAnswer} />}
         {(ex.type === 'build' || ex.type === 'listen') && <Build ex={ex} course={course} sound={sound} locked={!!verdict} onChange={setAnswer} />}
         {ex.type === 'type' && <TypeIn ex={ex} course={course} locked={!!verdict} onChange={setAnswer} />}
+        {ex.type === 'speak' && <Speak ex={ex} course={course} sound={sound} locked={!!verdict} onChange={setAnswer} onSkip={() => check(SKIP)} />}
         {ex.type === 'match' && <Match ex={ex} course={course} sound={sound} onDone={() => check('done')} />}
       </main>
 
@@ -108,7 +146,8 @@ export function Lesson(props: Props) {
               <div className="feedback">
                 {verdict.correct ? (
                   <>
-                    <h2><span aria-hidden="true">✅</span> {praise}</h2>
+                    <h2><span aria-hidden="true">✅</span> {verdict.note === 'skip' ? 'Nessun problema' : praise}</h2>
+                    {verdict.note === 'skip' && <p className="answer">Ci riproverai nella prossima lezione.</p>}
                     {verdict.note === 'accent' && <p className="answer">Attenzione agli accenti: {verdict.expected}</p>}
                     {verdict.note === 'typo' && <p className="answer">Attenzione all'ortografia: {verdict.expected}</p>}
                   </>
@@ -117,6 +156,11 @@ export function Lesson(props: Props) {
                     <h2><span aria-hidden="true">❌</span> Risposta corretta:</h2>
                     <p className="answer" dir="auto" lang={ex.type !== 'match' && 'lang' in ex && ex.lang === 'native' ? course.nativeLang : course.targetLang}>{verdict.expected}</p>
                   </>
+                )}
+                {verdict.note !== 'skip' && ex.type !== 'match' && (
+                  <a className="report" href={reportLink(course, ex, answerGiven, verdict.expected)} target="_blank" rel="noopener noreferrer">
+                    Segnala un errore
+                  </a>
                 )}
               </div>
               <button className={`btn ${verdict.correct ? 'success' : 'danger'}`} onClick={proceed} autoFocus>Continua</button>
@@ -134,6 +178,15 @@ export function Lesson(props: Props) {
           )}
         </div>
       </footer>
+
+      {tipsOpen && (
+        <Modal label="Suggerimenti">
+          <div className="big-emoji" aria-hidden="true">💡</div>
+          <h2>Suggerimenti</h2>
+          <TipList tips={tips} />
+          <button className="btn block" onClick={() => setTipsOpen(false)} autoFocus>Ho capito</button>
+        </Modal>
+      )}
 
       {quitting && (
         <Modal label="Uscire dalla lezione?">
@@ -366,4 +419,85 @@ function Match({ ex, course, sound, onDone }: { ex: MatchExercise; course: Cours
 
 function compactOr(text: string, compact?: boolean): string {
   return compact ? compactText(text) : text
+}
+
+function TipList({ tips }: { tips: string[] }) {
+  return (
+    <ul className="tips">
+      {tips.map((t) => <li key={t} dir="ltr">{t}</li>)}
+    </ul>
+  )
+}
+
+function reportLink(course: Course, ex: Exercise, given: string, expected: string): string {
+  const shown = 'prompt' in ex ? ex.prompt : ''
+  const body = [
+    `Corso: ${course.title} (${course.id})`,
+    `Lezione: ${ex.lessonId}`,
+    `Esercizio: ${ex.id} (${ex.type})`,
+    `Frase mostrata: ${shown}`,
+    `Risposta data: ${given === SKIP ? '' : given.replace(/\n/g, ' / ')}`,
+    `Soluzione indicata: ${expected}`,
+    '',
+    "Cosa c'è che non va?",
+    '',
+  ].join('\n')
+  const title = `Errore nel corso di ${course.title.toLowerCase()}: ${ex.id}`
+  return `${REPORT_URL}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`
+}
+
+function Speak({ ex, course, sound, locked, onChange, onSkip }: {
+  ex: SpeakExercise; course: Course; sound: boolean; locked: boolean; onChange: (v: string | null) => void; onSkip: () => void
+}) {
+  const [state, setState] = useState<'idle' | 'listening' | 'heard' | 'error'>('idle')
+  const [heard, setHeard] = useState<string[]>([])
+  const [error, setError] = useState('')
+  const stopRef = useRef<() => void>(() => {})
+  const text = course.compact ? compactText(ex.prompt) : ex.prompt
+
+  useEffect(() => () => stopRef.current(), [])
+
+  const start = () => {
+    setState('listening')
+    setError('')
+    const { result, stop } = listenOnce(course.targetLang)
+    stopRef.current = stop
+    result.then(
+      (h) => {
+        setHeard(h)
+        setState('heard')
+        onChange(h.join('\n'))
+      },
+      (e: Error) => {
+        setState('error')
+        setError(e.message === 'not-allowed' || e.message === 'service-not-allowed'
+          ? 'Il microfono non è autorizzato. Puoi consentirlo nelle impostazioni del browser, oppure saltare.'
+          : 'Non ho sentito bene. Riprova, parlando vicino al telefono.')
+      },
+    )
+  }
+
+  return (
+    <>
+      <h1 className="ex-title">Leggi ad alta voce</h1>
+      <div className="speech">
+        <div className="avatar" aria-hidden="true">🧑‍🏫</div>
+        <p className="bubble" dir="auto" lang={course.targetLang}>
+          {sound && (
+            <button className="icon-btn" style={{ fontSize: 20, padding: 2 }} aria-label="Ascolta la frase" onClick={() => speak(text, course.targetLang)}>🔊</button>
+          )}
+          <span>
+            <span data-testid="prompt">{text}</span>
+            {ex.roman && <small className="roman">{ex.roman}</small>}
+          </span>
+        </p>
+      </div>
+      <button className={`mic${state === 'listening' ? ' on' : ''}`} disabled={locked || state === 'listening'} onClick={start}>
+        <span aria-hidden="true">🎤</span> {state === 'listening' ? 'Ti ascolto…' : state === 'heard' ? 'Riprova' : 'Tocca e parla'}
+      </button>
+      {state === 'heard' && <p className="muted" dir="auto">Hai detto: «{heard[0]}»</p>}
+      {state === 'error' && <p className="muted" role="alert">{error}</p>}
+      {!locked && <button className="link-btn" onClick={onSkip}>Non posso parlare ora</button>}
+    </>
+  )
 }

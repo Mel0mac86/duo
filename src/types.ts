@@ -88,7 +88,16 @@ export interface MatchExercise extends ExerciseBase {
   pairs: { native: string; target: string; roman?: string }[]
 }
 
-export type Exercise = SelectExercise | BuildExercise | TypeExercise | MatchExercise
+export interface SpeakExercise extends ExerciseBase {
+  type: 'speak'
+  /** target sentence to read aloud */
+  prompt: string
+  roman?: string
+  answers: string[]
+  compact?: boolean
+}
+
+export type Exercise = SelectExercise | BuildExercise | TypeExercise | MatchExercise | SpeakExercise
 
 export interface CourseProgress {
   completed: string[]
@@ -106,6 +115,14 @@ export interface SaveState {
   lastActiveDay: string | null
   hearts: number
   heartsUpdatedAt: number
+  /** hearts are optional: off means no limit on mistakes or lessons */
+  heartsOn: boolean
+  /** speaking exercises, when the device can recognise speech */
+  speakOn: boolean
+  /** the last missed day the weekly free day covered, 'YYYY-MM-DD' */
+  freeDayUsed: string | null
+  /** lessons whose tips were already shown */
+  tipsSeen: string[]
   lessonsDone: number
   perfectLessons: number
 }

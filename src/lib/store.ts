@@ -20,6 +20,10 @@ export function fresh(now = Date.now()): SaveState {
     lastActiveDay: null,
     hearts: MAX_HEARTS,
     heartsUpdatedAt: now,
+    heartsOn: false,
+    speakOn: true,
+    freeDayUsed: null,
+    tipsSeen: [],
     lessonsDone: 0,
     perfectLessons: 0,
   }
@@ -92,10 +96,22 @@ export function clearMistake(state: SaveState, courseId: string, exId: string): 
   return { ...state, courses: { ...state.courses, [courseId]: { ...p, mistakes: p.mistakes.filter((m) => m.id !== exId) } } }
 }
 
-export function currentStreak(state: SaveState, now: number): number {
-  if (!state.lastActiveDay) return 0
+/** One missed day per 7 days does not break the streak. */
+export function freeDayAvailable(state: SaveState, now: number): boolean {
+  return !state.freeDayUsed || state.freeDayUsed <= addDays(dayKey(now), -7)
+}
+
+/** Whether the streak is alive today, and whether that needs the free day (one day missed). */
+function streakStatus(state: SaveState, now: number): 'alive' | 'free-day' | 'broken' {
+  if (!state.lastActiveDay) return 'broken'
   const today = dayKey(now)
-  return state.lastActiveDay === today || state.lastActiveDay === addDays(today, -1) ? state.streak : 0
+  if (state.lastActiveDay === today || state.lastActiveDay === addDays(today, -1)) return 'alive'
+  if (state.lastActiveDay === addDays(today, -2) && freeDayAvailable(state, now)) return 'free-day'
+  return 'broken'
+}
+
+export function currentStreak(state: SaveState, now: number): number {
+  return streakStatus(state, now) === 'broken' ? 0 : state.streak
 }
 
 export function xpToday(state: SaveState, now: number): number {
@@ -115,6 +131,8 @@ export interface Completion {
   state: SaveState
   xp: number
   streakExtended: boolean
+  /** the weekly free day kept the streak alive */
+  usedFreeDay: boolean
   goalReached: boolean
 }
 
@@ -124,6 +142,7 @@ export function completeLesson(state: SaveState, result: LessonResult, now: numb
   const before = xpToday(state, now)
   const streak = currentStreak(state, now)
   const streakExtended = state.lastActiveDay !== today
+  const usedFreeDay = streakExtended && streakStatus(state, now) === 'free-day'
   const p = progressFor(state, result.courseId)
   const completed = result.lessonId && !p.completed.includes(result.lessonId) ? [...p.completed, result.lessonId] : p.completed
   let next: SaveState = {
@@ -132,6 +151,7 @@ export function completeLesson(state: SaveState, result: LessonResult, now: numb
     xpByDay: { ...state.xpByDay, [today]: before + xp },
     streak: streakExtended ? streak + 1 : streak,
     lastActiveDay: today,
+    freeDayUsed: usedFreeDay ? addDays(today, -1) : state.freeDayUsed,
     lessonsDone: state.lessonsDone + (result.practice ? 0 : 1),
     perfectLessons: state.perfectLessons + (!result.practice && result.mistakes === 0 ? 1 : 0),
   }
@@ -139,7 +159,7 @@ export function completeLesson(state: SaveState, result: LessonResult, now: numb
     next = refillHearts(next, now)
     if (next.hearts < MAX_HEARTS) next = { ...next, hearts: next.hearts + 1, heartsUpdatedAt: next.hearts + 1 >= MAX_HEARTS ? now : next.heartsUpdatedAt }
   }
-  return { state: next, xp, streakExtended, goalReached: before < state.dailyGoal && before + xp >= state.dailyGoal }
+  return { state: next, xp, streakExtended, usedFreeDay, goalReached: before < state.dailyGoal && before + xp >= state.dailyGoal }
 }
 
 /** The lessons a learner can open: every completed one plus the first one not done yet. */

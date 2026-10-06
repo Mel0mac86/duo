@@ -6,8 +6,8 @@ function formatTime(ms: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-export function Complete({ completion, result, streak, onContinue }: {
-  completion: Completion; result: LessonResult; streak: number; onContinue: () => void
+export function Complete({ completion, result, streak, heartsOn, onContinue }: {
+  completion: Completion; result: LessonResult; streak: number; heartsOn: boolean; onContinue: () => void
 }) {
   const answers = result.total + result.mistakes
   const accuracy = Math.round((result.total / answers) * 100)
@@ -22,7 +22,8 @@ export function Complete({ completion, result, streak, onContinue }: {
         </p>
       )}
       {completion.goalReached && <p className="muted">Hai raggiunto l'obiettivo di oggi.</p>}
-      {result.practice && <p className="muted">Hai recuperato un cuore ❤️</p>}
+      {completion.usedFreeDay && <p className="muted" data-testid="free-day">🛡️ Ieri non hai studiato, ma il giorno libero della settimana ha salvato la tua serie.</p>}
+      {result.practice && heartsOn && <p className="muted">Hai recuperato un cuore ❤️</p>}
       <div className="stats">
         <div className="stat xp"><div className="label">XP</div><div className="value" data-testid="earned-xp">+{completion.xp}</div></div>
         <div className="stat acc"><div className="label">Precisione</div><div className="value">{accuracy}%</div></div>

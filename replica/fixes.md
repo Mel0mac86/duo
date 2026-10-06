@@ -36,11 +36,11 @@ machine with open web access, or allow the hosts in the environment's network se
 
 | # | fix | size | answers | status |
 | --- | --- | --- | --- | --- |
-| P1 | No limits: hearts become optional (Settings), lessons never blocked when off | S | H1 | to build |
-| P2 | Tips card before each lesson: the grammar of that lesson, in Italian | M | H2, missing explanations | to build |
-| P3 | Speaking exercise: say the sentence, checked with the phone's speech recognition, skippable | M | H2 | to build |
-| P4 | Gentle streak: one missed day a week does not break it; no notifications, ever | S | H3 | to build |
-| P5 | "Segnala un errore" on every answer, opening a prefilled GitHub issue | S | H5 | to build |
+| P1 | No limits: hearts become optional (Settings), lessons never blocked when off | S | H1 | done |
+| P2 | Tips card before each lesson: the grammar of that lesson, in Italian | M | H2, missing explanations | done |
+| P3 | Speaking exercise: say the sentence, checked with the phone's speech recognition, skippable | M | H2 | done |
+| P4 | Gentle streak: one missed day a week does not break it; no notifications, ever | S | H3 | done |
+| P5 | "Segnala un errore" on every answer, opening a prefilled GitHub issue | S | H5 | done |
 | — | No ads, no paywall, no account | — | H4 | already true |
 
 Note on H5: Parlami's own course sentences were written by an AI too and have not been

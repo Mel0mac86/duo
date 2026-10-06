@@ -9,6 +9,7 @@ interface Props {
   dailyGoal: number
   mistakes: number
   canPractice: boolean
+  heartsOn: boolean
   onStart: (lessonId: string) => void
   onPractice: () => void
 }
@@ -16,7 +17,7 @@ interface Props {
 // zig-zag offsets for the path
 const OFFSETS = [0, 44, 66, 44, 0, -44, -66, -44]
 
-export function Learn({ course, completed, order, xpToday, dailyGoal, mistakes, canPractice, onStart, onPractice }: Props) {
+export function Learn({ course, completed, order, xpToday, dailyGoal, mistakes, canPractice, heartsOn, onStart, onPractice }: Props) {
   const goalPct = Math.min(100, Math.round((xpToday / dailyGoal) * 100))
   const current = order.find((id) => !completed.includes(id))
   let n = 0
@@ -38,7 +39,7 @@ export function Learn({ course, completed, order, xpToday, dailyGoal, mistakes, 
         <section className="card practice-card">
           <div>
             <h3>Ripasso</h3>
-            <p className="muted">{mistakes ? `${mistakes} errori da rivedere` : 'Rinfresca le lezioni completate'} · +1 ❤️</p>
+            <p className="muted">{mistakes ? `${mistakes} errori da rivedere` : 'Rinfresca le lezioni completate'}{heartsOn ? ' · +1 ❤️' : ''}</p>
           </div>
           <button className="btn secondary" onClick={onPractice}>Ripassa</button>
         </section>

@@ -1,5 +1,5 @@
 import type { Course, SaveState } from '../types'
-import { achievements, addDays, currentStreak, dayKey, progressFor, totalXp } from '../lib/store'
+import { achievements, addDays, currentStreak, dayKey, freeDayAvailable, progressFor, totalXp } from '../lib/store'
 import { allLessons } from '../data/courses'
 
 const DAYS = ['Do', 'Lu', 'Ma', 'Me', 'Gi', 'Ve', 'Sa']
@@ -23,6 +23,11 @@ export function Profile({ state, course, now }: { state: SaveState; course: Cour
           <div className="tile-stat"><span className="emoji" aria-hidden="true">📘</span><div><strong>{state.lessonsDone}</strong><span>Lezioni fatte</span></div></div>
           <div className="tile-stat"><span className="emoji" aria-hidden="true">{course.flag}</span><div><strong>{done}/{total}</strong><span>{course.title}</span></div></div>
         </div>
+        <p className="muted" data-testid="free-day-status">
+          🛡️ {freeDayAvailable(state, now)
+            ? 'Giorno libero disponibile: se salti un giorno questa settimana, la serie non si interrompe.'
+            : `Giorno libero già usato: torna disponibile il ${formatDay(addDays(state.freeDayUsed!, 7))}.`}
+        </p>
       </section>
 
       <section className="section card" aria-labelledby="week-t">
@@ -57,4 +62,9 @@ export function Profile({ state, course, now }: { state: SaveState; course: Cour
       </section>
     </>
   )
+}
+
+function formatDay(day: string): string {
+  const [y, m, d] = day.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
 }

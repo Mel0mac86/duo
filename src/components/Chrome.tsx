@@ -14,7 +14,7 @@ export function Logo({ size = 40 }: { size?: number }) {
   )
 }
 
-export function TopBar(props: { course: Course; streak: number; xp: number; hearts: number; onCourse: () => void }) {
+export function TopBar(props: { course: Course; streak: number; xp: number; hearts: number | null; onCourse: () => void }) {
   const { course, streak, xp, hearts, onCourse } = props
   return (
     <header className="topbar">
@@ -32,11 +32,11 @@ export function TopBar(props: { course: Course; streak: number; xp: number; hear
           <span className="sr-only">XP totali:</span>
           {xp}
         </span>
-        <span className="chip heart" title="Cuori" data-testid="hearts">
+        {hearts !== null && <span className="chip heart" title="Cuori" data-testid="hearts">
           <span className="emoji" aria-hidden="true">❤️</span>
           <span className="sr-only">Cuori:</span>
           {hearts}
-        </span>
+        </span>}
       </div>
     </header>
   )
