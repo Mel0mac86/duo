@@ -43,6 +43,8 @@ export interface Course {
   compact?: boolean
   /** target not written in the Latin alphabet: no typing exercise */
   nonLatin?: boolean
+  /** target written right to left */
+  rtl?: boolean
   units: Unit[]
 }
 

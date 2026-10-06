@@ -1,6 +1,7 @@
 import type { Course, LessonDef, Sentence, Word } from '../types'
 import {
-  chinese, dutch, french, german, greek, japanese, korean, polish, portuguese, romanian, russian, swedish, turkish,
+  arabic, chinese, dutch, french, german, greek, hindi, japanese, korean, polish, portuguese, romanian, russian,
+  swedish, turkish, ukrainian,
 } from './languages'
 
 // All course content below is original to Parlami.
@@ -232,7 +233,7 @@ export const spanish: Course = {
 
 export const courses: Course[] = [
   english, spanish, french, german, portuguese, polish, chinese, japanese,
-  korean, russian, greek, dutch, swedish, turkish, romanian,
+  korean, russian, ukrainian, greek, arabic, hindi, dutch, swedish, turkish, romanian,
 ]
 
 export function getCourse(id: string | null): Course | undefined {

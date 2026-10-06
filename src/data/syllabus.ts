@@ -53,6 +53,8 @@ export interface CourseMeta {
   compact?: boolean
   /** not written in the Latin alphabet: no typing exercise, show a romanization */
   nonLatin?: boolean
+  /** written right to left (Arabic) */
+  rtl?: boolean
 }
 
 export interface Translation {

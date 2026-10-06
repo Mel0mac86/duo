@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { allLessons, english } from '../src/data/courses'
-import { chinese, polish } from '../src/data/languages'
+import { arabic, chinese, hindi, polish } from '../src/data/languages'
 import type { Course } from '../src/types'
 
 // A solver that answers like a learner who knows the course, using only what is on screen.
@@ -10,7 +10,7 @@ const words = () => allLessons(course).flatMap((l) => l.words)
 const sentences = () => allLessons(course).flatMap((l) => l.sentences)
 const squash = (t: string) => t.replace(/\s+/g, '')
 const tiles = (s: string, locale: string) =>
-  s.replace(/[.,!?¡¿;:"。，、！？]/g, ' ').split(/\s+/).filter(Boolean).map((t, i) => (i === 0 && t !== 'I' ? t.toLocaleLowerCase(locale) : t))
+  s.replace(/[.,!?¡¿;:"。，、！？،؟।]/g, ' ').split(/\s+/).filter(Boolean).map((t, i) => (i === 0 && t !== 'I' ? t.toLocaleLowerCase(locale) : t))
 
 test.beforeEach(() => { course = english })
 
@@ -213,7 +213,7 @@ test('typed answers forgive case and punctuation', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /Ottimo|Perfetto|Esatto|Bravissimo|Ben fatto/ })).toBeVisible()
 })
 
-for (const c of [polish, chinese]) {
+for (const c of [polish, chinese, arabic, hindi]) {
   test(`a full first lesson in ${c.title}`, async ({ page }) => {
     course = c
     await onboard(page, c.title)

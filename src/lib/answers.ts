@@ -14,8 +14,8 @@ const CONTRACTIONS: [RegExp, string][] = [
   [/\bcan not\b/g, 'cannot'],
 ]
 
-const PUNCTUATION = /[.,!?¡¿;:"“”«»()…\-–—/。，、！？：；「」『』・]/g
-const TILE_PUNCTUATION = /[.,!?¡¿;:"“”«»()…。，、！？：；「」『』]/g
+const PUNCTUATION = /[.,!?¡¿;:"“”«»()…\-–—/。，、！？：；「」『』・،؟؛।॥]/g
+const TILE_PUNCTUATION = /[.,!?¡¿;:"“”«»()…。，、！？：；「」『』،؟؛।॥]/g
 
 const COMBINING_MARKS = new RegExp(`[${String.fromCharCode(0x300)}-${String.fromCharCode(0x36f)}]`, 'g')
 const DOTTED_I = new RegExp(`i${String.fromCharCode(0x307)}`, 'g')

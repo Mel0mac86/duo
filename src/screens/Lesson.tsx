@@ -115,7 +115,7 @@ export function Lesson(props: Props) {
                 ) : (
                   <>
                     <h2><span aria-hidden="true">❌</span> Risposta corretta:</h2>
-                    <p className="answer" lang={ex.type !== 'match' && 'lang' in ex && ex.lang === 'native' ? course.nativeLang : course.targetLang}>{verdict.expected}</p>
+                    <p className="answer" dir="auto" lang={ex.type !== 'match' && 'lang' in ex && ex.lang === 'native' ? course.nativeLang : course.targetLang}>{verdict.expected}</p>
                   </>
                 )}
               </div>
@@ -205,6 +205,8 @@ function Build({ ex, course, sound, locked, onChange }: {
   const [picked, setPicked] = useState<number[]>([])
   const [reveal, setReveal] = useState(ex.type === 'listen' && !canSpeak())
   const lang = ex.lang === 'target' ? course.targetLang : course.nativeLang
+  // Arabic sentences are built right to left
+  const dir = ex.lang === 'target' && course.rtl ? 'rtl' : undefined
   const listen = ex.type === 'listen'
   const shown = (t: string) => (course.compact ? compactText(t) : t)
   const play = useCallback((slow = false) => { if (ex.audio) speak(compactOr(ex.audio, course.compact), course.targetLang, slow) }, [ex.audio, course.targetLang, course.compact])
@@ -227,13 +229,13 @@ function Build({ ex, course, sound, locked, onChange }: {
             <button className="speaker slow" aria-label="Ascolta lentamente" onClick={() => play(true)}>🐢</button>
           </div>
           {reveal
-            ? <p className="bubble" lang={course.targetLang}><span data-testid="listen-text">{shown(ex.audio ?? '')}</span>{ex.roman && <small className="roman">{ex.roman}</small>}</p>
+            ? <p className="bubble" dir="auto" lang={course.targetLang}><span data-testid="listen-text">{shown(ex.audio ?? '')}</span>{ex.roman && <small className="roman">{ex.roman}</small>}</p>
             : <button className="link-btn" onClick={() => setReveal(true)}>Non posso ascoltare ora</button>}
         </>
       ) : (
         <div className="speech">
           <div className="avatar" aria-hidden="true">🧑‍🏫</div>
-          <p className="bubble" lang={ex.lang === 'target' ? course.nativeLang : course.targetLang}>
+          <p className="bubble" dir="auto" lang={ex.lang === 'target' ? course.nativeLang : course.targetLang}>
             {ex.lang === 'native' && sound && (
               <button className="icon-btn" style={{ fontSize: 20, padding: 2 }} aria-label="Ascolta la frase" onClick={() => speak(shown(ex.prompt), course.targetLang)}>🔊</button>
             )}
@@ -244,14 +246,14 @@ function Build({ ex, course, sound, locked, onChange }: {
           </p>
         </div>
       )}
-      <div className="answer-line" aria-label="La tua risposta" data-testid="answer-line" lang={lang}>
+      <div className="answer-line" aria-label="La tua risposta" data-testid="answer-line" lang={lang} dir={dir}>
         {picked.map((i, pos) => (
           <button key={i} className="tile" disabled={locked} onClick={() => setPicked((p) => p.filter((_, k) => k !== pos))}>
             {ex.tiles[i]}
           </button>
         ))}
       </div>
-      <div className="bank" aria-label="Parole disponibili" data-testid="bank" lang={lang}>
+      <div className="bank" aria-label="Parole disponibili" data-testid="bank" lang={lang} dir={dir}>
         {ex.tiles.map((t, i) => {
           const used = picked.includes(i)
           return (
@@ -283,7 +285,7 @@ function TypeIn({ ex, course, locked, onChange }: { ex: TypeExercise; course: Co
       <h1 className="ex-title">Scrivi in {course.targetName}</h1>
       <div className="speech">
         <div className="avatar" aria-hidden="true">🧑‍🏫</div>
-        <p className="bubble" lang={course.nativeLang}><span data-testid="prompt">{ex.prompt}</span></p>
+        <p className="bubble" dir="auto" lang={course.nativeLang}><span data-testid="prompt">{ex.prompt}</span></p>
       </div>
       <label className="sr-only" htmlFor="type-answer">La tua traduzione</label>
       <textarea
